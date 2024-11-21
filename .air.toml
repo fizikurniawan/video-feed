@@ -1,0 +1,13 @@
+# Config file untuk Air
+[build]
+  cmd = "go build -o ./tmp/main ./cmd/main.go" # Path ke main package
+  bin = "./tmp/main"                          # Path output binary
+  full_bin = "APP_ENV=dev ./tmp/main"         # Jalankan dengan env vars
+
+[log]
+  level = "debug"                             # Lihat log Air
+  color = true
+
+[watch]
+  includes = ["**/*.go", "**/*.html", "**/*.yaml", "**/*.json"]
+  excludes = ["tmp", "vendor", "node_modules"]

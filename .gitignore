@@ -1,0 +1,5 @@
+.env
+.vscode/*
+tmp/*
+videos/*
+.DS_Store

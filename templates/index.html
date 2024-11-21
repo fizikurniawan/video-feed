@@ -1,0 +1,32 @@
+<form id="uploadForm">
+    <input type="file" id="videoFile" name="videoFile" />
+    <button type="submit">Upload</button>
+</form>
+
+<script>
+    document.getElementById('uploadForm').addEventListener('submit', function(e) {
+        e.preventDefault();
+
+        var file = document.getElementById('videoFile').files[0];
+        var chunkSize = 5 * 1024 * 1024; // 5MB
+        var totalChunks = Math.ceil(file.size / chunkSize);
+
+        for (var i = 0; i < totalChunks; i++) {
+            var chunk = file.slice(i * chunkSize, (i + 1) * chunkSize);
+            var formData = new FormData();
+            formData.append("chunk", chunk);
+            formData.append("chunk_index", i + 1);
+            formData.append("total_chunks", totalChunks);
+            formData.append("video_id", "unique_video_id"); // bisa di-generate sesuai kebutuhan
+
+            // Kirim chunk
+            fetch('http://localhost:8080/api/upload-chunk', {
+                method: 'POST',
+                body: formData,
+            })
+            .then(response => response.json())
+            .then(data => console.log(data))
+            .catch(error => console.error('Error:', error));
+        }
+    });
+</script>

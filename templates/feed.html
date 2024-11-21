@@ -1,0 +1,326 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Video Feed</title>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/hls.js/1.4.10/hls.min.js"></script>
+    <style>
+        /* Previous CSS remains the same */
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            background-color: #000;
+            color: #fff;
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, Cantarell, sans-serif;
+        }
+
+        .feed-container {
+            height: 100vh;
+            width: 100%;
+            max-width: 480px;
+            margin: 0 auto;
+            position: relative;
+            overflow: hidden;
+        }
+
+        .video-container {
+            height: 100%;
+            width: 100%;
+            position: relative;
+            scroll-snap-type: y mandatory;
+            overflow-y: scroll;
+            overflow-x: hidden;
+        }
+
+        .video-item {
+            height: 100%;
+            width: 100%;
+            position: relative;
+            scroll-snap-align: start;
+        }
+
+        .video-player {
+            width: 100%;
+            height: 100%;
+            object-fit: cover;
+        }
+
+        .video-info {
+            position: absolute;
+            bottom: 20px;
+            left: 12px;
+            right: 12px;
+            z-index: 2;
+        }
+
+        .username {
+            font-size: 1.2rem;
+            font-weight: 600;
+            margin-bottom: 8px;
+        }
+
+        .description {
+            font-size: 0.9rem;
+            margin-bottom: 12px;
+        }
+
+        .actions {
+            position: absolute;
+            right: 12px;
+            bottom: 120px;
+            display: flex;
+            flex-direction: column;
+            gap: 20px;
+            align-items: center;
+        }
+
+        .action-button {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            gap: 4px;
+            color: #fff;
+            background: none;
+            border: none;
+            cursor: pointer;
+        }
+
+        .action-icon {
+            width: 40px;
+            height: 40px;
+            background: rgba(255, 255, 255, 0.1);
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+
+        .action-count {
+            font-size: 0.8rem;
+        }
+
+        .loading {
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            width: 40px;
+            height: 40px;
+            border: 4px solid rgba(255, 255, 255, 0.3);
+            border-radius: 50%;
+            border-top-color: #fff;
+            animation: spin 1s ease-in-out infinite;
+        }
+
+        @keyframes spin {
+            to { transform: translate(-50%, -50%) rotate(360deg); }
+        }
+
+        /* Loading state for infinite scroll */
+        .loader {
+            text-align: center;
+            padding: 20px;
+            color: white;
+            height: 100px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+
+        @media (max-width: 768px) {
+            .feed-container {
+                width: 100%;
+                max-width: none;
+            }
+
+            .video-info {
+                bottom: 80px;
+            }
+
+            .actions {
+                right: 8px;
+                bottom: 100px;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="feed-container">
+        <div class="video-container" id="videoContainer">
+            <!-- Videos will be inserted here by JavaScript -->
+        </div>
+    </div>
+
+    <script>
+        let page = 1;
+        let loading = false;
+        let hasMore = true;
+        const videoContainer = document.getElementById('videoContainer');
+        let currentlyPlayingVideo = null;
+        const API_BASE_URL = "http://localhost:8080/api"
+        const token = "foo";
+
+        // Fetch videos from API
+        async function fetchVideos(pageNumber) {
+            try {
+                loading = true;
+                // Replace with your actual API endpoint
+                const response = await fetch(`${API_BASE_URL}/list`, {
+                    headers: {
+                        "Authorization": token,
+                        "Content-Type": "application/json"
+                    }
+                });
+                const data = await response.json();
+                
+                // Check if we have more pages
+                hasMore = data.hasMore || false;
+                
+                return data.videos || []
+            } catch (error) {
+                console.error('Error fetching videos:', error);
+                return [];
+            } finally {
+                loading = false;
+            }
+        }
+
+        // Create video elements
+        function createVideoElement(videoData) {
+            const videoItem = document.createElement('div');
+            videoItem.className = 'video-item';
+            
+            const video = document.createElement('video');
+            video.className = 'video-player';
+            video.loop = true;
+            video.playsInline = true;
+            video.muted = true;
+
+            const loadingIndicator = document.createElement('div');
+            loadingIndicator.className = 'loading';
+
+            const videoInfo = document.createElement('div');
+            videoInfo.className = 'video-info';
+            videoInfo.innerHTML = `
+                <div class="username">${videoData.username}</div>
+                <div class="description">${videoData.description}</div>
+            `;
+
+            const actions = document.createElement('div');
+            actions.className = 'actions';
+            actions.innerHTML = `
+                <button class="action-button">
+                    <div class="action-icon">❤️</div>
+                    <span class="action-count">${videoData.likes}</span>
+                </button>
+                <button class="action-button">
+                    <div class="action-icon">💬</div>
+                    <span class="action-count">${videoData.comments}</span>
+                </button>
+                <button class="action-button">
+                    <div class="action-icon">↗️</div>
+                    <span class="action-count">${videoData.shares}</span>
+                </button>
+            `;
+
+            videoItem.appendChild(video);
+            videoItem.appendChild(loadingIndicator);
+            videoItem.appendChild(videoInfo);
+            videoItem.appendChild(actions);
+
+            return { videoItem, video, loadingIndicator };
+        }
+
+        // Initialize HLS
+        function initializeHLS(video, hlsUrl, loadingIndicator) {
+            if (Hls.isSupported()) {
+                const hls = new Hls();
+                hls.loadSource(hlsUrl);
+                hls.attachMedia(video);
+                hls.on(Hls.Events.MANIFEST_PARSED, () => {
+                    loadingIndicator.style.display = 'none';
+                    video.play().catch(console.error);
+                });
+            } else if (video.canPlayType('application/vnd.apple.mpegurl')) {
+                video.src = hlsUrl;
+                video.addEventListener('loadedmetadata', () => {
+                    loadingIndicator.style.display = 'none';
+                    video.play().catch(console.error);
+                });
+            }
+        }
+
+        // Load and append videos
+        async function loadVideos() {
+            if (loading || !hasMore) return;
+
+            const videos = await fetchVideos(page);
+            
+            videos.forEach(videoData => {
+                const { videoItem, video, loadingIndicator } = createVideoElement(videoData);
+                videoContainer.appendChild(videoItem);
+                initializeHLS(video, videoData.hls_url, loadingIndicator);
+                observer.observe(videoItem);
+            });
+
+            page++;
+        }
+
+        // Intersection Observer for video playback
+        const observer = new IntersectionObserver((entries) => {
+            entries.forEach(entry => {
+                const video = entry.target.querySelector('video');
+                if (entry.isIntersecting) {
+                    video.play().catch(console.error);
+                    currentlyPlayingVideo = video;
+                } else {
+                    video.pause();
+                    video.currentTime = 0;
+                }
+            });
+        }, {
+            threshold: 0.5
+        });
+
+        // Infinite scroll observer
+        const scrollObserver = new IntersectionObserver((entries) => {
+            if (entries[0].isIntersecting && !loading && hasMore) {
+                loadVideos();
+            }
+        }, {
+            rootMargin: '100px'
+        });
+
+        // Add scroll sentinel
+        const sentinel = document.createElement('div');
+        sentinel.className = 'loader';
+        videoContainer.appendChild(sentinel);
+        scrollObserver.observe(sentinel);
+
+        // Initial load
+        loadVideos();
+
+        // Double tap to like
+        let lastTap = 0;
+        document.addEventListener('touchend', (e) => {
+            const currentTime = new Date().getTime();
+            const tapLength = currentTime - lastTap;
+            if (tapLength < 300 && tapLength > 0) {
+                const videoItem = e.target.closest('.video-item');
+                if (videoItem) {
+                    const likeButton = videoItem.querySelector('.action-button');
+                    const likeCount = likeButton.querySelector('.action-count');
+                    const currentLikes = parseInt(likeCount.textContent);
+                    likeCount.textContent = currentLikes + 1;
+                }
+            }
+            lastTap = currentTime;
+        });
+    </script>
+</body>
+</html>

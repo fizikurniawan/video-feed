@@ -1,0 +1,188 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Video Upload</title>
+    <style>
+        .upload-container {
+            max-width: 600px;
+            margin: 50px auto;
+            padding: 20px;
+            border-radius: 8px;
+            box-shadow: 0 0 10px rgba(0,0,0,0.1);
+        }
+
+        .progress-bar {
+            width: 100%;
+            height: 20px;
+            background-color: #f0f0f0;
+            border-radius: 10px;
+            overflow: hidden;
+            margin: 20px 0;
+        }
+
+        .progress-bar-fill {
+            height: 100%;
+            background-color: #4CAF50;
+            width: 0%;
+            transition: width 0.3s ease;
+        }
+
+        .upload-btn {
+            background-color: #4CAF50;
+            color: white;
+            padding: 10px 20px;
+            border: none;
+            border-radius: 4px;
+            cursor: pointer;
+        }
+
+        .upload-btn:disabled {
+            background-color: #cccccc;
+            cursor: not-allowed;
+        }
+
+        .status {
+            margin-top: 10px;
+            color: #666;
+        }
+    </style>
+</head>
+<body>
+    <div class="upload-container">
+        <input type="file" id="videoInput" accept="video/*">
+        <input type="text" id="description" placeholder="Video description">
+        <button id="uploadBtn" class="upload-btn">Upload Video</button>
+        <div class="progress-bar">
+            <div class="progress-bar-fill" id="progressBar"></div>
+        </div>
+        <div id="status" class="status"></div>
+    </div>
+
+    <script>
+        const CHUNK_SIZE = 1024 * 1024 * 5; // 5MB chunks
+        const API_BASE_URL = 'http://localhost:8080/api';
+        const token = "foo";
+
+
+        class ChunkUploader {
+            constructor(file, description) {
+                this.file = file;
+                this.description = description;
+                this.chunks = Math.ceil(file.size / CHUNK_SIZE);
+                this.currentChunk = 0;
+                this.uploadId = null;
+            }
+
+            async start() {
+                try {
+                    // Initiate upload session
+                    const response = await fetch(`${API_BASE_URL}/initiate-chunk-upload`, {
+                        method: 'POST',
+                        headers: {
+                            'Content-Type': 'application/json', // Pastikan header ini ada
+                            "Authorization": token,
+                        },
+                        body: JSON.stringify({
+                            fileName: this.file.name,
+                            totalChunks: this.chunks
+                        })
+                    });
+                    const data = await response.json();
+                    this.uploadId = data.uploadId;
+
+                    // Upload chunks
+                    await this.uploadNextChunk();
+                } catch (error) {
+                    this.updateStatus('Upload failed: ' + error.message);
+                }
+            }
+
+            async uploadNextChunk() {
+                if (this.currentChunk >= this.chunks) {
+                    await this.completeUpload();
+                    return;
+                }
+
+                const start = this.currentChunk * CHUNK_SIZE;
+                const end = Math.min(start + CHUNK_SIZE, this.file.size);
+                const chunk = this.file.slice(start, end);
+
+                const formData = new FormData();
+                formData.append('chunk', chunk);
+                formData.append('uploadId', this.uploadId);
+                formData.append('chunkNumber', this.currentChunk);
+
+                try {
+                    await fetch(`${API_BASE_URL}/upload-chunk`, {
+                        method: 'POST',
+                        body: formData,
+                        headers: {
+                            "Authorization": token,
+                        }
+                    });
+
+                    this.currentChunk++;
+                    this.updateProgress();
+                    await this.uploadNextChunk();
+                } catch (error) {
+                    this.updateStatus('Chunk upload failed: ' + error.message);
+                }
+            }
+
+            async completeUpload() {
+                const formData = new FormData();
+                formData.append('uploadId', this.uploadId);
+                formData.append('description', this.description);
+
+                try {
+                    const response = await fetch(`${API_BASE_URL}/complete-chunk-upload`, {
+                        method: 'POST',
+                        body: formData,
+                        headers: {
+                            "Authorization": token,
+                        }
+                    });
+                    const data = await response.json();
+                    this.updateStatus('Upload completed successfully!');
+                    return data;
+                } catch (error) {
+                    this.updateStatus('Failed to complete upload: ' + error.message);
+                }
+            }
+
+            updateProgress() {
+                const progress = (this.currentChunk / this.chunks) * 100;
+                const progressBar = document.getElementById('progressBar');
+                progressBar.style.width = `${progress}%`;
+                this.updateStatus(`Uploading: ${Math.round(progress)}%`);
+            }
+
+            updateStatus(message) {
+                const status = document.getElementById('status');
+                status.textContent = message;
+            }
+        }
+
+        // Event Listeners
+        document.getElementById('uploadBtn').addEventListener('click', async () => {
+            const fileInput = document.getElementById('videoInput');
+            const descInput = document.getElementById('description');
+            
+            if (!fileInput.files.length) {
+                alert('Please select a video file');
+                return;
+            }
+
+            const file = fileInput.files[0];
+            const description = descInput.value;
+
+            const uploader = new ChunkUploader(file, description);
+            document.getElementById('uploadBtn').disabled = true;
+            await uploader.start();
+            document.getElementById('uploadBtn').disabled = false;
+        });
+    </script>
+</body>
+</html>
