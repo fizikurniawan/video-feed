@@ -2,7 +2,6 @@ package services
 
 import (
 	"context"
-	"database/sql"
 	"fmt"
 	"log"
 	"os"
@@ -10,12 +9,19 @@ import (
 	"path/filepath"
 	"strings"
 	"time"
-	"video-feed/models"
+	"video-feed/config"
+	"video-feed/internal/repositories"
+	"video-feed/pkg/storage"
 )
 
 type HLSBackgroundJob struct {
-	MinIO *MinIOService
-	DB    *sql.DB
+	Cfg   *config.AppConfig
+	MinIO *storage.MinIOService
+	Repo  *repositories.VideoRepository
+}
+
+func NewHLSBackgroundJob(Cfg *config.AppConfig, MinIO *storage.MinIOService, Repo *repositories.VideoRepository) *HLSBackgroundJob {
+	return &HLSBackgroundJob{Cfg: Cfg, MinIO: MinIO, Repo: Repo}
 }
 
 type HLSJobResult struct {
@@ -58,21 +64,6 @@ func (h *HLSBackgroundJob) ProcessHLSWithTimeout(videoID, inputPath string) <-ch
 
 		// Create master playlist
 		masterPlaylist := "#EXTM3U\n#EXT-X-VERSION:3\n"
-
-		/*
-		   // Process original quality first
-		   originalPath := filepath.Join(outputDir, "original")
-		   os.MkdirAll(originalPath, os.ModePerm)
-
-		   if err := h.processQuality(ctx, inputPath, originalPath, 0, ""); err != nil {
-		       result.Error = fmt.Errorf("original quality conversion failed: %v", err)
-		       result.Success = false
-		       resultChan <- result
-		       return
-		   }
-
-		   masterPlaylist += "#EXT-X-STREAM-INF:BANDWIDTH=5000000,RESOLUTION=original\noriginal/playlist.m3u8\n"
-		*/
 
 		// Process each resolution
 		for _, res := range resolutions {
@@ -170,28 +161,24 @@ func (h *HLSBackgroundJob) processQuality(ctx context.Context, inputPath, output
 }
 
 func (h *HLSBackgroundJob) HandleJobResult(result HLSJobResult) error {
-	var processingError string
+	var (
+		processingError string
+		qualities       = []string{"original"} // Default qualities
+		hlsURL          string
+	)
+
+	// Capture error message if any
 	if result.Error != nil {
 		processingError = result.Error.Error()
 	}
 
-	// Update video with new qualities if successful
+	// Handle success case
 	if result.Success {
-		qualities := []string{"480p", "720p"}
-		video, err := models.GetVideoByID(h.DB, result.VideoID)
-		if err != nil {
-			log.Printf("Failed to get video: %v", err)
-			return err
-		}
-
-		video.Qualities = qualities
-		video.HLSURL = strings.Replace(video.HLSURL, "playlist.m3u8", "master.m3u8", 1)
-
-		if err := models.SaveVideo(h.DB, video); err != nil {
-			log.Printf("Failed to update video qualities: %v", err)
-			return err
-		}
+		qualities = []string{"480p", "720p", "original"} // Update qualities
+		// Generate HLS URL
+		hlsURL = h.Cfg.Env.CDN_URL + "videos/" + result.VideoID + "/playlist.m3u8"
 	}
 
-	return models.UpdateVideoProcessingStatus(h.DB, result.VideoID, result.Success, processingError)
+	// Update video processing status
+	return h.Repo.UpdateVideoProcessingStatus(result.VideoID, result.Success, processingError, qualities, hlsURL)
 }

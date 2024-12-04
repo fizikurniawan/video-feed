@@ -30,7 +30,7 @@ func isTokenValid(authHeader string, authUrl string) (bool, error) {
 func AuthMiddleware(cfg *config.AppConfig) gin.HandlerFunc {
 	return func(c *gin.Context) {
 		authHeader := c.GetHeader("Authorization")
-		isValid, _ := isTokenValid(authHeader, cfg.AUTHURL)
+		isValid, _ := isTokenValid(authHeader, "resr")
 		if !isValid {
 			c.JSON(http.StatusUnauthorized, gin.H{"error": "Unauthorized"})
 			c.Abort()

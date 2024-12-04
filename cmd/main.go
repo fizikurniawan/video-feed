@@ -15,6 +15,8 @@ func main() {
 
 	// Setup Gin
 	router := gin.Default()
+	router.Use(gin.Recovery())
+
 	router.LoadHTMLGlob("templates/*")
 
 	// Setup CORS middleware

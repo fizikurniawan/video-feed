@@ -1,51 +1,47 @@
-package models
+package repositories
 
 import (
-	"database/sql"
 	"encoding/json"
-	"time"
+	"video-feed/internal/models"
+	"video-feed/pkg/database"
 )
 
-type Video struct {
-	ID              string    `json:"id"`
-	UserID          string    `json:"user_id"`
-	OriginalURL     string    `json:"original_url"`
-	HLSURL          string    `json:"hls_url"`
-	ThumbnailURL    string    `json:"thumbnail_url"`
-	Duration        float64   `json:"duration"`
-	Description     string    `json:"description"`
-	CreatedAt       time.Time `json:"created_at"`
-	Qualities       []string  `json:"qualities"`
-	HLSProcessed    bool      `json:"hls_processed"`
-	ProcessingError string    `json:"processing_error"`
+type VideoRepository struct {
+	dbManager *database.DatabaseManager
 }
 
-// SaveVideo saves a video to the database or updates it if it already exists
-func SaveVideo(db *sql.DB, video *Video) error {
+func NewVideoRepository(dbManager *database.DatabaseManager) *VideoRepository {
+	return &VideoRepository{
+		dbManager: dbManager,
+	}
+}
+
+func (r *VideoRepository) Create(video *models.Video) error {
 	query := `
-		INSERT INTO videos (
-			id, user_id, original_url, hls_url, 
-			thumbnail_url, duration, description, 
-			created_at, qualities, hls_processed, 
-			processing_error
-		) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11)
-		ON CONFLICT (id) DO UPDATE SET
-		original_url = EXCLUDED.original_url,
-		hls_url = EXCLUDED.hls_url,
-		thumbnail_url = EXCLUDED.thumbnail_url,
-		duration = EXCLUDED.duration,
-		description = EXCLUDED.description,
-		qualities = EXCLUDED.qualities,
-		hls_processed = EXCLUDED.hls_processed,
-		processing_error = EXCLUDED.processing_error
-	`
+	INSERT INTO videos (
+		id, user_id, original_url, hls_url, 
+		thumbnail_url, duration, description, 
+		created_at, qualities, hls_processed, 
+		processing_error
+	) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11)
+	ON CONFLICT (id) DO UPDATE SET
+	original_url = EXCLUDED.original_url,
+	hls_url = EXCLUDED.hls_url,
+	thumbnail_url = EXCLUDED.thumbnail_url,
+	duration = EXCLUDED.duration,
+	description = EXCLUDED.description,
+	qualities = EXCLUDED.qualities,
+	hls_processed = EXCLUDED.hls_processed,
+	processing_error = EXCLUDED.processing_error
+`
 
 	qualitiesJSON, err := json.Marshal(video.Qualities)
 	if err != nil {
 		return err
 	}
 
-	_, err = db.Exec(query,
+	// Gunakan dbManager untuk eksekusi query
+	_, err = r.dbManager.Exec(query,
 		video.ID, video.UserID, video.OriginalURL, video.HLSURL,
 		video.ThumbnailURL, video.Duration, video.Description,
 		video.CreatedAt, qualitiesJSON, // SIMPAN JSON KE KOLOM JSONB
@@ -54,9 +50,8 @@ func SaveVideo(db *sql.DB, video *Video) error {
 	return err
 }
 
-// GetVideoByID retrieves a video from the database by its ID
-func GetVideoByID(db *sql.DB, videoID string) (*Video, error) {
-	var video Video
+func (r *VideoRepository) GetVideoByID(videoID string) (*models.Video, error) {
+	var video models.Video
 
 	query := `
 		SELECT 
@@ -69,7 +64,8 @@ func GetVideoByID(db *sql.DB, videoID string) (*Video, error) {
 	`
 
 	var qualitiesJSON []byte
-	err := db.QueryRow(query, videoID).Scan(
+	// Gunakan dbManager untuk query
+	err := r.dbManager.QueryRow(query, videoID).Scan(
 		&video.ID, &video.UserID, &video.OriginalURL, &video.HLSURL,
 		&video.ThumbnailURL, &video.Duration, &video.Description,
 		&video.CreatedAt, &qualitiesJSON, &video.HLSProcessed,
@@ -90,20 +86,28 @@ func GetVideoByID(db *sql.DB, videoID string) (*Video, error) {
 }
 
 // UpdateVideoProcessingStatus updates the processing status of a video
-func UpdateVideoProcessingStatus(db *sql.DB, videoID string, processed bool, processingError string) error {
+func (r *VideoRepository) UpdateVideoProcessingStatus(videoID string, processed bool, processingError string, qualities []string, hls_url string) error {
 	query := `
 		UPDATE videos 
 		SET hls_processed = $1, 
-		    processing_error = $2 
-		WHERE id = $3
+		    processing_error = $2,
+			qualities = $3,
+			hls_url = $4
+		WHERE id = $5
 	`
 
-	_, err := db.Exec(query, processed, processingError, videoID)
+	qualitiesJSON, err := json.Marshal(qualities)
+	if err != nil {
+		return err
+	}
+
+	// Gunakan dbManager untuk eksekusi query
+	_, err = r.dbManager.Exec(query, processed, processingError, qualitiesJSON, hls_url, videoID)
 	return err
 }
 
 // ListUserVideos retrieves a paginated list of videos for a specific user
-func ListUserVideos(db *sql.DB, userID string, limit, offset int) ([]Video, error) {
+func (r *VideoRepository) ListUserVideos(userID string, limit, offset int) ([]models.Video, error) {
 	query := `
 		SELECT 
 			id, user_id, original_url, hls_url, 
@@ -116,15 +120,16 @@ func ListUserVideos(db *sql.DB, userID string, limit, offset int) ([]Video, erro
 		LIMIT $2 OFFSET $3
 	`
 
-	rows, err := db.Query(query, userID, limit, offset)
+	// Menggunakan method Query dari DatabaseManager
+	rows, err := r.dbManager.Query(query, userID, limit, offset)
 	if err != nil {
 		return nil, err
 	}
 	defer rows.Close()
 
-	var videos []Video
+	var videos []models.Video
 	for rows.Next() {
-		var video Video
+		var video models.Video
 
 		var qualitiesJSON []byte // JSONB akan di-scan sebagai []byte
 		err = rows.Scan(
@@ -150,8 +155,12 @@ func ListUserVideos(db *sql.DB, userID string, limit, offset int) ([]Video, erro
 }
 
 // DeleteVideo deletes a video by its ID
-func DeleteVideo(db *sql.DB, videoID string) error {
+func (r *VideoRepository) DeleteVideo(videoID string) error {
+	db, err := r.dbManager.GetConnection()
+	if err != nil {
+		return err
+	}
 	query := `DELETE FROM videos WHERE id = $1`
-	_, err := db.Exec(query, videoID)
+	_, err = db.Exec(query, videoID)
 	return err
 }

@@ -1,30 +1,37 @@
-# Stage 1: Build stage
-FROM golang:1.23.1-alpine AS build
+# Stage 1: Build
+FROM golang:1.23.1-alpine AS builder
 
-# Set the working directory
+# Set working directory
 WORKDIR /app
 
-# Copy and download dependencies
+# Copy go mod and sum files
 COPY go.mod go.sum ./
+
+# Download dependencies
 RUN go mod download
 
-# Copy the source code
+# Copy source code
 COPY . .
 
-# Build the Go application
-RUN CGO_ENABLED=0 GOOS=linux go build -o myapp cmd/main.go
+# Build the application
+RUN CGO_ENABLED=0 GOOS=linux go build -o /main cmd/main.go
 
-# Stage 2: Final stage
-FROM alpine:edge
+# Stage 2: Run
+FROM alpine:latest
 
-# Set the working directory
-WORKDIR /app
+# Install certificates and ffmpeg
+RUN apk --no-cache add ca-certificates ffmpeg
 
-# Copy the binary from the build stage
-COPY --from=build /app/myapp .
+# Set working directory
+WORKDIR /root/
 
-# Set the timezone and install CA certificates
-RUN apk --no-cache add ca-certificates tzdata
+# Copy built binary from builder stage
+COPY --from=builder /main .
 
-# Set the entrypoint command
-ENTRYPOINT ["/app/myapp"]
+COPY --from=builder /app/templates /root/templates
+
+# Optional: Expose port if your app uses it
+EXPOSE 8080
+
+# Run the binary
+CMD ["./main"]

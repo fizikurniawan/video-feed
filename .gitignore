@@ -3,3 +3,5 @@
 tmp/*
 videos/*
 .DS_Store
+.env.local
+.env.server

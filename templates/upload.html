@@ -132,17 +132,17 @@
             }
 
             async completeUpload() {
-                const formData = new FormData();
-                formData.append('uploadId', this.uploadId);
-                formData.append('description', this.description);
-
                 try {
                     const response = await fetch(`${API_BASE_URL}/complete-chunk-upload`, {
                         method: 'POST',
-                        body: formData,
                         headers: {
+                            'Content-Type': 'application/json',
                             "Authorization": token,
-                        }
+                        },
+                        body: JSON.stringify({
+                            uploadId: this.uploadId,
+                            description: this.description
+                        })
                     });
                     const data = await response.json();
                     this.updateStatus('Upload completed successfully!');

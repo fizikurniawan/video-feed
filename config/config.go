@@ -1,65 +1,53 @@
 package config
 
 import (
-	"database/sql"
 	"fmt"
 	"log"
-	"os"
-	"video-feed/services"
+	"time"
+	"video-feed/pkg/database"
+	"video-feed/pkg/storage"
 
-	"github.com/joho/godotenv"
 	_ "github.com/lib/pq"
 )
 
 type AppConfig struct {
-	DB        *sql.DB
-	MinIO     *services.MinIOService
-	Container string
-	CDNURL    string
-	AUTHURL   string
+	DB    *database.DatabaseManager
+	MinIO *storage.MinIOService
+	Env   *Env
 }
 
 func LoadConfig() *AppConfig {
 	// Load environment variables
-	err := godotenv.Load()
+	env, err := LoadEnv()
 	if err != nil {
 		log.Fatalf("Error loading .env file: %v", err)
 	}
 
-	// Construct DB connection string
-	dbUser := os.Getenv("DB_USER")
-	dbPass := os.Getenv("DB_PASS")
-	dbHost := os.Getenv("DB_HOST")
-	dbPort := os.Getenv("DB_PORT")
-	dbName := os.Getenv("DB_NAME")
-	dbSSLMode := os.Getenv("DB_SSLMODE")
-
-	dbURL := fmt.Sprintf("postgres://%s:%s@%s:%s/%s?sslmode=%s",
-		dbUser, dbPass, dbHost, dbPort, dbName, dbSSLMode,
+	dbConnString := fmt.Sprintf("postgres://%s:%s@%s:%s/%s?sslmode=%s",
+		env.DB_USER, env.DB_PASS, env.DB_HOST, env.DB_PORT, env.DB_NAME, env.DB_SSLMODE,
 	)
 
-	// Setup database connection
-	db, err := sql.Open("postgres", dbURL)
+	db, err := database.NewDatabaseManager(dbConnString)
 	if err != nil {
-		log.Fatalf("Failed to connect to database: %v", err)
+		log.Fatalf("Database initialization failed: %v", err)
 	}
 
-	// MinIO setup
-	minioEndpoint := os.Getenv("MINIO_ENDPOINT")
-	minioAccessKey := os.Getenv("MINIO_ACCESS_KEY")
-	minioSecretKey := os.Getenv("MINIO_SECRET_KEY")
-	minioBucket := os.Getenv("MINIO_BUCKET")
-
-	minioService, err := services.NewMinIOService(minioEndpoint, minioAccessKey, minioSecretKey, minioBucket)
+	var minioService *storage.MinIOService
+	for i := 0; i < 3; i++ {
+		minioService, err = storage.NewMinIOService(env.MINIO_ENDPOINT, env.MINIO_ACCESS_KEY, env.MINIO_SECRET_KEY, env.MINIO_BUCKET_NAME, env.MINIO_IS_HTTPS)
+		if err == nil {
+			break
+		}
+		log.Printf("Retry %d: Failed to connect to MinIO: %v", i+1, err)
+		time.Sleep(2 * time.Second)
+	}
 	if err != nil {
-		log.Fatalf("Failed to initialize MinIO service: %v", err)
+		log.Fatalf("Failed to initialize MinIO service after retries: %v", err)
 	}
 
 	return &AppConfig{
-		DB:        db,
-		MinIO:     minioService,
-		Container: minioBucket,
-		CDNURL:    os.Getenv("CDN_URL"),
-		AUTHURL:   os.Getenv("AUTH_URL"),
+		DB:    db,
+		MinIO: minioService,
+		Env:   env,
 	}
 }
