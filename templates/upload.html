@@ -1,5 +1,6 @@
 <!DOCTYPE html>
 <html lang="en">
+
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
@@ -10,7 +11,7 @@
             margin: 50px auto;
             padding: 20px;
             border-radius: 8px;
-            box-shadow: 0 0 10px rgba(0,0,0,0.1);
+            box-shadow: 0 0 10px rgba(0, 0, 0, 0.1);
         }
 
         .progress-bar {
@@ -49,6 +50,7 @@
         }
     </style>
 </head>
+
 <body>
     <div class="upload-container">
         <input type="file" id="videoInput" accept="video/*">
@@ -81,7 +83,7 @@
                     const response = await fetch(`${API_BASE_URL}/initiate-chunk-upload`, {
                         method: 'POST',
                         headers: {
-                            'Content-Type': 'application/json', // Pastikan header ini ada
+                            'Content-Type': 'application/json',
                             "Authorization": token,
                         },
                         body: JSON.stringify({
@@ -89,6 +91,13 @@
                             totalChunks: this.chunks
                         })
                     });
+
+                    // Check if the response is not successful
+                    if (!response.ok) {
+                        const errorText = await response.text();
+                        throw new Error(`Initiation failed: ${response.status} - ${errorText}`);
+                    }
+
                     const data = await response.json();
                     this.uploadId = data.uploadId;
 
@@ -96,6 +105,7 @@
                     await this.uploadNextChunk();
                 } catch (error) {
                     this.updateStatus('Upload failed: ' + error.message);
+                    this.resetUploadState();
                 }
             }
 
@@ -115,7 +125,7 @@
                 formData.append('chunkNumber', this.currentChunk);
 
                 try {
-                    await fetch(`${API_BASE_URL}/upload-chunk`, {
+                    const response = await fetch(`${API_BASE_URL}/upload-chunk`, {
                         method: 'POST',
                         body: formData,
                         headers: {
@@ -123,11 +133,18 @@
                         }
                     });
 
+                    // Check if the response is not successful
+                    if (!response.ok) {
+                        const errorText = await response.text();
+                        throw new Error(`Chunk upload failed: ${response.status} - ${errorText}`);
+                    }
+
                     this.currentChunk++;
                     this.updateProgress();
                     await this.uploadNextChunk();
                 } catch (error) {
-                    this.updateStatus('Chunk upload failed: ' + error.message);
+                    this.updateStatus(error.message);
+                    this.resetUploadState();
                 }
             }
 
@@ -144,11 +161,19 @@
                             description: this.description
                         })
                     });
+
+                    // Check if the response is not successful
+                    if (!response.ok) {
+                        const errorText = await response.text();
+                        throw new Error(`Completion failed: ${response.status} - ${errorText}`);
+                    }
+
                     const data = await response.json();
                     this.updateStatus('Upload completed successfully!');
                     return data;
                 } catch (error) {
-                    this.updateStatus('Failed to complete upload: ' + error.message);
+                    this.updateStatus(error.message);
+                    this.resetUploadState();
                 }
             }
 
@@ -163,13 +188,19 @@
                 const status = document.getElementById('status');
                 status.textContent = message;
             }
+
+            resetUploadState() {
+                const progressBar = document.getElementById('progressBar');
+                progressBar.style.width = '0%';
+                document.getElementById('uploadBtn').disabled = false;
+            }
         }
 
         // Event Listeners
         document.getElementById('uploadBtn').addEventListener('click', async () => {
             const fileInput = document.getElementById('videoInput');
             const descInput = document.getElementById('description');
-            
+
             if (!fileInput.files.length) {
                 alert('Please select a video file');
                 return;
@@ -181,8 +212,8 @@
             const uploader = new ChunkUploader(file, description);
             document.getElementById('uploadBtn').disabled = true;
             await uploader.start();
-            document.getElementById('uploadBtn').disabled = false;
         });
     </script>
 </body>
+
 </html>

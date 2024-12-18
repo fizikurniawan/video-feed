@@ -15,13 +15,13 @@ import (
 )
 
 type HLSBackgroundJob struct {
-	Cfg   *config.AppConfig
-	MinIO *storage.MinIOService
-	Repo  *repositories.VideoRepository
+	Cfg     *config.AppConfig
+	Storage storage.StorageService
+	Repo    *repositories.VideoRepository
 }
 
-func NewHLSBackgroundJob(Cfg *config.AppConfig, MinIO *storage.MinIOService, Repo *repositories.VideoRepository) *HLSBackgroundJob {
-	return &HLSBackgroundJob{Cfg: Cfg, MinIO: MinIO, Repo: Repo}
+func NewHLSBackgroundJob(Cfg *config.AppConfig, Storage storage.StorageService, Repo *repositories.VideoRepository) *HLSBackgroundJob {
+	return &HLSBackgroundJob{Cfg: Cfg, Storage: Storage, Repo: Repo}
 }
 
 type HLSJobResult struct {
@@ -107,7 +107,7 @@ func (h *HLSBackgroundJob) ProcessHLSWithTimeout(videoID, inputPath string) <-ch
 
 				relativePath := strings.TrimPrefix(path, outputDir)
 				minioPath := fmt.Sprintf("videos/%s%s", videoID, relativePath)
-				return h.MinIO.UploadObject(minioPath, file)
+				return h.Storage.UploadObject(minioPath, file)
 			}
 			return nil
 		})
@@ -176,7 +176,7 @@ func (h *HLSBackgroundJob) HandleJobResult(result HLSJobResult) error {
 	if result.Success {
 		qualities = []string{"480p", "720p", "original"} // Update qualities
 		// Generate HLS URL
-		hlsURL = h.Cfg.Env.CDN_URL + "videos/" + result.VideoID + "/playlist.m3u8"
+		hlsURL = h.Cfg.Env.CDN_URL + "videos/" + result.VideoID + "/master.m3u8"
 	}
 
 	// Update video processing status

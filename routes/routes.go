@@ -12,7 +12,7 @@ import (
 
 func RegisterRoutes(router *gin.Engine, cfg *config.AppConfig) {
 	videoRepo := repositories.NewVideoRepository(cfg.DB)
-	videoService := services.NewVideoService(videoRepo, cfg.MinIO, cfg)
+	videoService := services.NewVideoService(videoRepo, cfg.Storage, cfg)
 	videoController := controllers.NewVideoController(videoService)
 
 	api := router.Group("/api")

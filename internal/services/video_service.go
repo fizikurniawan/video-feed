@@ -20,11 +20,11 @@ import (
 
 type VideoService struct {
 	repo    *repositories.VideoRepository
-	storage *storage.MinIOService
+	storage storage.StorageService
 	cfg     *config.AppConfig
 }
 
-func NewVideoService(repo *repositories.VideoRepository, storage *storage.MinIOService, cfg *config.AppConfig) *VideoService {
+func NewVideoService(repo *repositories.VideoRepository, storage storage.StorageService, cfg *config.AppConfig) *VideoService {
 	return &VideoService{
 		repo:    repo,
 		storage: storage,
@@ -222,7 +222,7 @@ func (vs *VideoService) CompleteChunkUpload(dto dto.CompleteChunkUploadDTO, user
 	finalFile.Seek(0, 0)
 	err = vs.storage.UploadObject(originalPath, finalFile)
 	if err != nil {
-		return nil, fmt.Errorf("failed to upload to storage")
+		return nil, fmt.Errorf("failed to upload to storage: %v", err)
 	}
 
 	// Create video record

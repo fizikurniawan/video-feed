@@ -3,7 +3,6 @@ package config
 import (
 	"fmt"
 	"log"
-	"time"
 	"video-feed/pkg/database"
 	"video-feed/pkg/storage"
 
@@ -11,9 +10,9 @@ import (
 )
 
 type AppConfig struct {
-	DB    *database.DatabaseManager
-	MinIO *storage.MinIOService
-	Env   *Env
+	DB      *database.DatabaseManager
+	Storage storage.StorageService
+	Env     *Env
 }
 
 func LoadConfig() *AppConfig {
@@ -32,22 +31,28 @@ func LoadConfig() *AppConfig {
 		log.Fatalf("Database initialization failed: %v", err)
 	}
 
-	var minioService *storage.MinIOService
-	for i := 0; i < 3; i++ {
-		minioService, err = storage.NewMinIOService(env.MINIO_ENDPOINT, env.MINIO_ACCESS_KEY, env.MINIO_SECRET_KEY, env.MINIO_BUCKET_NAME, env.MINIO_IS_HTTPS)
-		if err == nil {
-			break
-		}
-		log.Printf("Retry %d: Failed to connect to MinIO: %v", i+1, err)
-		time.Sleep(2 * time.Second)
+	rackCfg := storage.RackspaceCfg{
+		RACKSPACE_USERNAME:  env.RACKSPACE_USERNAME,
+		RACKSPACE_API_KEY:   env.RACKSPACE_API_KEY,
+		RACKSPACE_AUTH_URL:  env.RACKSPACE_AUTH_URL,
+		RACKSPACE_REGION:    env.RACKSPACE_REGION,
+		RACKPSACE_CONTAINER: env.RACKPSACE_CONTAINER,
 	}
+	miniCfg := storage.MinioCfg{
+		MINIO_ENDPOINT:    env.MINIO_ENDPOINT,
+		MINIO_ACCESS_KEY:  env.MINIO_ACCESS_KEY,
+		MINIO_SECRET_KEY:  env.MINIO_SECRET_KEY,
+		MINIO_BUCKET_NAME: env.MINIO_BUCKET_NAME,
+		MINIO_IS_HTTPS:    env.MINIO_IS_HTTPS,
+	}
+	storageSrv, err := storage.NewStorageService(env.STORAGE_PROVIDER, miniCfg, rackCfg)
 	if err != nil {
-		log.Fatalf("Failed to initialize MinIO service after retries: %v", err)
+		log.Fatalf("Storage initialization failed: %v", err)
 	}
 
 	return &AppConfig{
-		DB:    db,
-		MinIO: minioService,
-		Env:   env,
+		DB:      db,
+		Env:     env,
+		Storage: storageSrv,
 	}
 }
