@@ -92,7 +92,7 @@ func (h *HLSBackgroundJob) ProcessHLSWithTimeout(videoID, inputPath string) <-ch
 			return
 		}
 
-		// Upload all files to MinIO
+		// Upload all files to S3
 		err := filepath.Walk(outputDir, func(path string, info os.FileInfo, err error) error {
 			if err != nil {
 				return err

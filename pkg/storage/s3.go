@@ -12,7 +12,7 @@ import (
 	"github.com/minio/minio-go/v7/pkg/credentials"
 )
 
-type MinIOService struct {
+type S3Service struct {
 	Client    *minio.Client
 	Bucket    string
 	Endpoint  string
@@ -20,7 +20,7 @@ type MinIOService struct {
 	SecretKey string
 }
 
-func NewMinIOService(endpoint, accessKey, secretKey, bucket string, isHTTPS bool) (*MinIOService, error) {
+func NewS3Service(endpoint, accessKey, secretKey, bucket string, isHTTPS bool) (*S3Service, error) {
 	var client *minio.Client
 	var err error
 
@@ -32,7 +32,7 @@ func NewMinIOService(endpoint, accessKey, secretKey, bucket string, isHTTPS bool
 		if err == nil {
 			break
 		}
-		log.Printf("Retry %d: Failed to connect to MinIO: %v", i+1, err)
+		log.Printf("Retry %d: Failed to connect to S3: %v", i+1, err)
 		time.Sleep(2 * time.Second)
 	}
 	if err != nil {
@@ -45,13 +45,13 @@ func NewMinIOService(endpoint, accessKey, secretKey, bucket string, isHTTPS bool
 		return nil, err
 	}
 
-	return &MinIOService{
+	return &S3Service{
 		Client: client,
 		Bucket: bucket,
 	}, nil
 }
 
-func (m *MinIOService) UploadObject(objectName string, file *os.File) error {
+func (m *S3Service) UploadObject(objectName string, file *os.File) error {
 	ext := filepath.Ext(objectName)
 	contentType := mime.TypeByExtension(ext)
 

@@ -31,21 +31,21 @@ func LoadConfig() *AppConfig {
 		log.Fatalf("Database initialization failed: %v", err)
 	}
 
-	rackCfg := storage.RackspaceCfg{
-		RACKSPACE_USERNAME:  env.RACKSPACE_USERNAME,
-		RACKSPACE_API_KEY:   env.RACKSPACE_API_KEY,
-		RACKSPACE_AUTH_URL:  env.RACKSPACE_AUTH_URL,
-		RACKSPACE_REGION:    env.RACKSPACE_REGION,
-		RACKSPACE_CONTAINER: env.RACKSPACE_CONTAINER,
+	swiftCfg := storage.SwiftCfg{
+		SWIFT_USERNAME:  env.SWIFT_USERNAME,
+		SWIFT_API_KEY:   env.SWIFT_API_KEY,
+		SWIFT_AUTH_URL:  env.SWIFT_AUTH_URL,
+		SWIFT_REGION:    env.SWIFT_REGION,
+		SWIFT_CONTAINER: env.SWIFT_CONTAINER,
 	}
-	miniCfg := storage.MinioCfg{
-		MINIO_ENDPOINT:    env.MINIO_ENDPOINT,
-		MINIO_ACCESS_KEY:  env.MINIO_ACCESS_KEY,
-		MINIO_SECRET_KEY:  env.MINIO_SECRET_KEY,
-		MINIO_BUCKET_NAME: env.MINIO_BUCKET_NAME,
-		MINIO_IS_HTTPS:    env.MINIO_IS_HTTPS,
+	miniCfg := storage.S3Cfg{
+		S3_ENDPOINT:    env.S3_ENDPOINT,
+		S3_ACCESS_KEY:  env.S3_ACCESS_KEY,
+		S3_SECRET_KEY:  env.S3_SECRET_KEY,
+		S3_BUCKET_NAME: env.S3_BUCKET_NAME,
+		S3_IS_HTTPS:    env.S3_IS_HTTPS,
 	}
-	storageSrv, err := storage.NewStorageService(env.STORAGE_PROVIDER, miniCfg, rackCfg)
+	storageSrv, err := storage.NewStorageService(env.STORAGE_PROVIDER, miniCfg, swiftCfg)
 	if err != nil {
 		log.Fatalf("Storage initialization failed: %v", err)
 	}

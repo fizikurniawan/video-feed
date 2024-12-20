@@ -4,30 +4,30 @@ import (
 	"errors"
 )
 
-type MinioCfg struct {
-	MINIO_ENDPOINT    string
-	MINIO_ACCESS_KEY  string
-	MINIO_SECRET_KEY  string
-	MINIO_BUCKET_NAME string
-	MINIO_IS_HTTPS    bool
+type S3Cfg struct {
+	S3_ENDPOINT    string
+	S3_ACCESS_KEY  string
+	S3_SECRET_KEY  string
+	S3_BUCKET_NAME string
+	S3_IS_HTTPS    bool
 }
 
-type RackspaceCfg struct {
-	RACKSPACE_USERNAME  string
-	RACKSPACE_API_KEY   string
-	RACKSPACE_AUTH_URL  string
-	RACKSPACE_REGION    string
-	RACKSPACE_CONTAINER string
+type SwiftCfg struct {
+	SWIFT_USERNAME  string
+	SWIFT_API_KEY   string
+	SWIFT_AUTH_URL  string
+	SWIFT_REGION    string
+	SWIFT_CONTAINER string
 }
 
-func NewStorageService(provider string, minioCfg MinioCfg, rackCfg RackspaceCfg) (StorageService, error) {
+func NewStorageService(provider string, s3Cfg S3Cfg, swiftCfg SwiftCfg) (StorageService, error) {
 	switch provider {
-	case "minio":
-		return NewMinIOService(
-			minioCfg.MINIO_ENDPOINT, minioCfg.MINIO_ACCESS_KEY, minioCfg.MINIO_SECRET_KEY, minioCfg.MINIO_BUCKET_NAME, minioCfg.MINIO_IS_HTTPS,
+	case "s3":
+		return NewS3Service(
+			s3Cfg.S3_ENDPOINT, s3Cfg.S3_ACCESS_KEY, s3Cfg.S3_SECRET_KEY, s3Cfg.S3_BUCKET_NAME, s3Cfg.S3_IS_HTTPS,
 		)
-	case "rackspace":
-		return NewRackspaceService(rackCfg.RACKSPACE_USERNAME, rackCfg.RACKSPACE_API_KEY, rackCfg.RACKSPACE_AUTH_URL, rackCfg.RACKSPACE_REGION, rackCfg.RACKSPACE_CONTAINER)
+	case "swift":
+		return NewSwiftService(swiftCfg.SWIFT_USERNAME, swiftCfg.SWIFT_API_KEY, swiftCfg.SWIFT_AUTH_URL, swiftCfg.SWIFT_REGION, swiftCfg.SWIFT_CONTAINER)
 	default:
 		return nil, errors.New("unsupported storage provider")
 	}

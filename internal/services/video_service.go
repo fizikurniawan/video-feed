@@ -70,7 +70,7 @@ func (vs *VideoService) UploadVideo(c *gin.Context) (models.Video, error) {
 
 	err = vs.storage.UploadObject(originalPath, tmpFile)
 	if err != nil {
-		return models.Video{}, fmt.Errorf("failed to upload video to MinIO: %v", err)
+		return models.Video{}, fmt.Errorf("failed to upload video to S3: %v", err)
 	}
 
 	video := models.Video{
@@ -218,7 +218,7 @@ func (vs *VideoService) CompleteChunkUpload(dto dto.CompleteChunkUploadDTO, user
 	videoID := utils.GenerateUniqueID()
 	originalPath := "videos/" + videoID + "/original" + mtype.Extension()
 
-	// Upload to MinIO
+	// Upload to S3
 	finalFile.Seek(0, 0)
 	err = vs.storage.UploadObject(originalPath, finalFile)
 	if err != nil {

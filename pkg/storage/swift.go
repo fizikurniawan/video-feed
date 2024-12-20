@@ -12,7 +12,7 @@ import (
 	"github.com/ncw/swift/v2"
 )
 
-type RackspaceService struct {
+type SwiftService struct {
 	Client    *swift.Connection
 	Username  string
 	ApiKey    string
@@ -21,7 +21,7 @@ type RackspaceService struct {
 	Container string
 }
 
-func NewRackspaceService(username, apiKey, authURL, region, containerName string) (*RackspaceService, error) {
+func NewSwiftService(username, apiKey, authURL, region, containerName string) (*SwiftService, error) {
 	// Input validation
 	if username == "" || apiKey == "" || authURL == "" || region == "" {
 		return nil, fmt.Errorf("missing required authentication parameters")
@@ -67,7 +67,7 @@ func NewRackspaceService(username, apiKey, authURL, region, containerName string
 		return nil, fmt.Errorf("failed to verify connection: %w", err)
 	}
 
-	return &RackspaceService{
+	return &SwiftService{
 		Client:    client,
 		Username:  username,
 		ApiKey:    apiKey,
@@ -77,7 +77,7 @@ func NewRackspaceService(username, apiKey, authURL, region, containerName string
 	}, nil
 }
 
-func (r *RackspaceService) UploadObject(objectName string, file *os.File) error {
+func (r *SwiftService) UploadObject(objectName string, file *os.File) error {
 	ext := filepath.Ext(objectName)
 	contentType := mime.TypeByExtension(ext)
 	if contentType == "" {
