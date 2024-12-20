@@ -17,7 +17,7 @@ type RackspaceCfg struct {
 	RACKSPACE_API_KEY   string
 	RACKSPACE_AUTH_URL  string
 	RACKSPACE_REGION    string
-	RACKPSACE_CONTAINER string
+	RACKSPACE_CONTAINER string
 }
 
 func NewStorageService(provider string, minioCfg MinioCfg, rackCfg RackspaceCfg) (StorageService, error) {
@@ -27,7 +27,7 @@ func NewStorageService(provider string, minioCfg MinioCfg, rackCfg RackspaceCfg)
 			minioCfg.MINIO_ENDPOINT, minioCfg.MINIO_ACCESS_KEY, minioCfg.MINIO_SECRET_KEY, minioCfg.MINIO_BUCKET_NAME, minioCfg.MINIO_IS_HTTPS,
 		)
 	case "rackspace":
-		return NewRackspaceService(rackCfg.RACKSPACE_USERNAME, rackCfg.RACKSPACE_API_KEY, rackCfg.RACKSPACE_AUTH_URL, rackCfg.RACKSPACE_REGION, rackCfg.RACKPSACE_CONTAINER)
+		return NewRackspaceService(rackCfg.RACKSPACE_USERNAME, rackCfg.RACKSPACE_API_KEY, rackCfg.RACKSPACE_AUTH_URL, rackCfg.RACKSPACE_REGION, rackCfg.RACKSPACE_CONTAINER)
 	default:
 		return nil, errors.New("unsupported storage provider")
 	}

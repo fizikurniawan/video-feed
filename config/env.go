@@ -26,7 +26,7 @@ type Env struct {
 	RACKSPACE_API_KEY   string
 	RACKSPACE_AUTH_URL  string
 	RACKSPACE_REGION    string
-	RACKPSACE_CONTAINER string
+	RACKSPACE_CONTAINER string
 }
 
 func LoadEnv() (*Env, error) {
@@ -54,6 +54,6 @@ func LoadEnv() (*Env, error) {
 		RACKSPACE_API_KEY:   os.Getenv("RACKSPACE_API_KEY"),
 		RACKSPACE_AUTH_URL:  os.Getenv("RACKSPACE_AUTH_URL"),
 		RACKSPACE_REGION:    os.Getenv("RACKSPACE_REGION"),
-		RACKPSACE_CONTAINER: os.Getenv("RACKPSACE_CONTAINER"),
+		RACKSPACE_CONTAINER: os.Getenv("RACKSPACE_CONTAINER"),
 	}, nil
 }

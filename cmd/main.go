@@ -3,6 +3,7 @@ package main
 import (
 	"time"
 	"video-feed/config"
+	"video-feed/pkg/utils/logger"
 	"video-feed/routes"
 
 	"github.com/gin-contrib/cors"
@@ -33,5 +34,6 @@ func main() {
 	routes.RegisterRoutes(router, appConfig)
 
 	// Start server
+	logger.Log.Info("Starting the application...")
 	router.Run(":8080")
 }
